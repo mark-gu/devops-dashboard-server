@@ -1,1 +1,1 @@
-# devops-dashboard-server
+# DevOps Dashboard - Server

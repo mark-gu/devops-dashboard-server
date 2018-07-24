@@ -1,0 +1,44 @@
+{
+  "name": "devops-dashboard-server",
+  "version": "1.0.0",
+  "description": "DevOps Dashboard Server",
+  "scripts": {
+    "start": "tsc && node ./bin/www",
+    "test": "jasmine --config=spec/support/jasmine.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark-gu/devops-dashboard-server.git"
+  },
+  "author": "Mark Gu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mark-gu/devops-dashboard-server/issues"
+  },
+  "homepage": "https://github.com/mark-gu/devops-dashboard-server#readme",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.2",
+    "cookie-parser": "~1.4.3",
+    "debug": "~2.6.9",
+    "express": "^4.16.3",
+    "http-errors": "^1.6.3",
+    "js-yaml": "^3.12.0",
+    "less-middleware": "~2.2.1",
+    "lodash": "^4.17.10",
+    "morgan": "^1.9.0",
+    "request": "^2.87.0",
+    "request-promise-native": "^1.0.5",
+    "winston": "^3.0.0",
+    "xml2js": "^0.4.19"
+  },
+  "devDependencies": {
+    "@types/es6-promise": "^3.3.0",
+    "@types/express": "^4.16.0",
+    "@types/node": "^10.5.1",
+    "@types/request": "^2.47.1",
+    "@types/request-promise-native": "^1.0.15",
+    "@types/winston": "^2.3.9",
+    "@types/xml2js": "^0.4.3",
+    "typescript": "^2.9.2"
+  }
+}
