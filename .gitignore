@@ -5,6 +5,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# JavaScript files generated from corresponding TypeScript files
+src/providers/*.js
+src/utils/*.js
+
 # Runtime data
 pids
 *.pid

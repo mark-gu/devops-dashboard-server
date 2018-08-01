@@ -7,7 +7,6 @@ router.get('/:providerName/:planId', (req, res, next) => {
         const providerName = req.params.providerName;
         const planId = req.params.planId;
         const top = req.query.top || 10;
-        throw new Error("random error")
 
         const providerModule = require(`../providers/${providerName}`);
         const provider = new providerModule();

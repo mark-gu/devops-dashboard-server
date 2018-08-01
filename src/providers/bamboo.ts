@@ -21,10 +21,10 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
                 planId: planId,
                 buildId: build.buildResultKey,
                 buildNumber: parseInt(build.buildNumber),
-                status: build.buildState,
-                reason: build.buildReason.replace(/<a .+>(.+)<\/a>/, '$1').replace(/&lt;.+&gt;/, '').trim(),
-                durationDescription: build.buildDurationDescription,
-                relativeTime: build.buildRelativeTime,
+                status: build.buildState.replace('Unknown', 'Building'),
+                reason: this._sanitizeBuildReason(build.buildReason),
+                timeStarted: build.buildRelativeTime,
+                duration: build.buildDurationDescription,
                 uri: `${_baseUrl}/browse/${build.buildResultKey}`
             };
 
@@ -51,8 +51,8 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
                         status: build.buildState,
                         uri: `${_baseUrl}/browse/${build.buildResultKey}`,
                         reason: '',
-                        durationDescription: '',
-                        relativeTime: ''
+                        timeStarted: '',
+                        duration: ''
                     });
                 });
             }
@@ -68,21 +68,21 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
             if (data) {
                 data.builds.forEach((build: any) => {
                     if (planId === build.planKey) {
-                      result.push({
-                        planId: build.planKey,
-                        buildId: build.planResultKey,
-                        buildNumber: parseInt(build.buildNumber),
-                        status: 'Building',
-                        reason: build.triggerReason,
-                        durationDescription: build.messageText,
-                        relativeTime: '',
-                        uri: `${_baseUrl}/browse/${build.buildResultKey}`,
-                        progress: {
-                            prettyStartedTime: build.messageText
-                        }
-                      });
+                        result.push({
+                            planId: build.planKey,
+                            buildId: build.planResultKey,
+                            buildNumber: parseInt(build.buildNumber),
+                            status: 'Building',
+                            reason: this._sanitizeBuildReason(build.triggerReason),
+                            timeStarted: '',
+                            duration: build.messageText,
+                            uri: `${_baseUrl}/browse/${build.buildResultKey}`,
+                            progress: {
+                                prettyStartedTime: build.messageText
+                            }
+                        });
                     }
-                  });
+                });
             }
 
             return result;
@@ -91,6 +91,10 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
 
     public getTestResultAsync(planId: string, buildNumber: number, testId: string): Promise<Interfaces.TestResult> {
         throw new Error("Method not implemented.");
+    }
+
+    private _sanitizeBuildReason(reason: string): string {
+        return reason.replace(/<a .+>(.+)<\/a>/, '$1').replace(/&lt;.+&gt;/, '').trim();
     }
 }
 
