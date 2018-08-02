@@ -9,16 +9,16 @@ const _headers = {
     'Authorization': _auth
 };
 
-class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITestResultProvider {
-    public getBuildResultAsync(planId: string, buildNumber: number): Promise<Interfaces.BuildResult | null> {
-        return RequestHelper.get(`${_apiUrl}/result/${planId}-${buildNumber}`, _headers).then((data: any) => {
+class BambooProvider implements Interfaces.IBuildResultProvider {
+    public getBuildResultAsync(buildId: string): Promise<Interfaces.BuildResult | null> {
+        return RequestHelper.get(`${_apiUrl}/result/${buildId}`, _headers).then((data: any) => {
             if (!data) {
                 return null;
             }
 
             const build = data.result;
             const result: Interfaces.BuildResult = {
-                planId: planId,
+                projectId: data.planKey,
                 buildId: build.buildResultKey,
                 buildNumber: parseInt(build.buildNumber),
                 status: build.buildState.replace('Unknown', 'Building'),
@@ -38,14 +38,27 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
         });
     }
 
-    public getCompletedBuildResultsAsync(planId: string, top: number = 10): Promise<Interfaces.BuildResult[]> {
-        return RequestHelper.get(`${_apiUrl}/result/${planId}?max-results=${top}`, _headers).then((data: any) => {
+    public getBuildResultsAsync(projectId: string, top: number = 10): Promise<Interfaces.BuildResult[]> {
+        const completedBuildsPromise = this._getCompletedBuildResultsAsync(projectId, top);
+        const currentBuildsPromise = this._getCurrentBuildsAsync(projectId);
+
+        return Promise.all([completedBuildsPromise, currentBuildsPromise]).then(values => {
+            const arr1 = values[0] || [];
+            const arr2 = values[1] || [];
+            const merged = arr1.concat(arr2).sort((a, b) => b.buildNumber - a.buildNumber);
+
+            return merged;
+        });
+    }
+
+    private _getCompletedBuildResultsAsync(projectId: string, top: number): Promise<Interfaces.BuildResult[]> {
+        return RequestHelper.get(`${_apiUrl}/result/${projectId}?max-results=${top}`, _headers).then((data: any) => {
             let result: Interfaces.BuildResult[] = [];
 
             if (data) {
                 data.results.results.result.forEach((build: any) => {
                     result.push({
-                        planId: planId,
+                        projectId: projectId,
                         buildId: build.buildResultKey,
                         buildNumber: parseInt(build.buildNumber),
                         status: build.buildState,
@@ -61,15 +74,15 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
         })
     }
 
-    public getCurrentBuildsAsync(planId: string): Promise<Interfaces.BuildResult[]> {
+    private _getCurrentBuildsAsync(projectId: string): Promise<Interfaces.BuildResult[]> {
         return RequestHelper.get(`${_baseUrl}/build/admin/ajax/getDashboardSummary.action`, _headers).then((data: any) => {
             let result: Interfaces.BuildResult[] = [];
 
             if (data) {
                 data.builds.forEach((build: any) => {
-                    if (planId === build.planKey) {
+                    if (projectId === build.planKey) {
                         result.push({
-                            planId: build.planKey,
+                            projectId: build.planKey,
                             buildId: build.planResultKey,
                             buildNumber: parseInt(build.buildNumber),
                             status: 'Building',
@@ -87,10 +100,6 @@ class BambooProvider implements Interfaces.IBuildResultProvider, Interfaces.ITes
 
             return result;
         })
-    }
-
-    public getTestResultAsync(planId: string, buildNumber: number, testId: string): Promise<Interfaces.TestResult> {
-        throw new Error("Method not implemented.");
     }
 
     private _sanitizeBuildReason(reason: string): string {
