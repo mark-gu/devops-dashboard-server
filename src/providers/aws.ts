@@ -1,66 +1,79 @@
-import * as Interfaces from '../../typings/interfaces';
-import * as AWS from 'aws-sdk';
+import _ from 'lodash';
 import moment from 'moment';
+import * as AWS from 'aws-sdk';
+import * as Model from '../../typings/model';
 
 const _region = process.env.AWS_REGION || 'ap-southeast-2';
 
-class AwsProvider implements Interfaces.IBuildResultProvider {
+class AwsProvider implements Model.IPipelineExecutionInfoProvider {
     constructor() {
         AWS.config.update({ region: _region });
+        this._codePipeline = new AWS.CodePipeline();
         this._codeBuild = new AWS.CodeBuild();
     }
 
+    private _codePipeline: AWS.CodePipeline;
+
     private _codeBuild: AWS.CodeBuild;
 
-    public getBuildResultAsync(buildId: string): Promise<Interfaces.BuildResult | null> {
-        const params: AWS.CodeBuild.BatchGetBuildsInput = {
-            ids: [buildId]
-        };
-
-        return this._codeBuild.batchGetBuilds(params).promise().then(result => {
-            if (result.builds && result.builds.length) {
-                const build = result.builds[0];
-                const startTime = moment(build.startTime || '');
-                const endTime = moment(build.endTime || '');
-
-                return {
-                    projectId: build.projectName || '',
-                    buildId: buildId,
-                    buildNumber: NaN,
-                    status: this._normalizeBuildStatus(build.buildStatus || ''),
-                    reason: build.initiator || '',
-                    duration: Math.round(endTime.diff(startTime) / 1000) + ' secs',
-                    timeStarted: startTime.fromNow(),
-                    uri: build.logs ? build.logs.deepLink || '' : '',
-                    _data: build
-                };
-            }
-
-            return null;
-        }).catch(reason => {
-            return null;
-        });
-    }
-
-    public getBuildResultsAsync(projectId: string, top: number = 10): Promise<Interfaces.BuildResult[]> {
-        const params: AWS.CodeBuild.ListBuildsForProjectInput = {
-            projectName: projectId
+    public getPipelineExecutionsAsync(pipelineId: string, top: number = 10): Promise<Model.PipelineExecution[]> {
+        const params: AWS.CodePipeline.ListPipelineExecutionsInput = {
+            pipelineName: pipelineId,
+            maxResults: top
         }
 
-        return this._codeBuild.listBuildsForProject(params).promise().then(result => {
-            return <any>result;
+        return this._codePipeline.listPipelineExecutions(params).promise().then(result => {
+            return _.map(result.pipelineExecutionSummaries || [], item => this._toBuildResult(pipelineId, item));
         }).catch(reason => {
             return [];
         });;
     }
 
-    private _normalizeBuildStatus(awsBuildStatus: string): string {
-        switch (awsBuildStatus.toUpperCase()) {
+    public getPipelineExecutionAsync(pipelineId: string, executionId: string): Promise<Model.PipelineExecution | null> {
+        return this.getPipelineExecutionsAsync(pipelineId).then(buildResults => {
+            return _.find(buildResults, item => item.id === executionId) || null;
+        }).catch(reason => {
+            return null;
+        });
+    }
+
+    private _toBuildResult(pipelineId: string, item: AWS.CodePipeline.PipelineExecutionSummary): Model.PipelineExecution {
+        const startMoment = moment(item.startTime || '');
+        const endMoment = moment(item.lastUpdateTime || '');
+        return {
+            pipelineId: pipelineId,
+            id: item.pipelineExecutionId || '',
+            sequenceNumber: NaN,
+            status: this._normalizeStatus(item.status || ''),
+            reason: this._normalizeReason(''),
+            changes: _.map(item.sourceRevisions || [], i => {
+                return {
+                    id: i.revisionId || '',
+                    summary: i.revisionSummary || '',
+                    uri: i.revisionUrl || ''
+                };
+            }),
+            timeStarted: startMoment.toISOString(true) || '',
+            duration: endMoment.diff(startMoment),
+            uri: ''
+        };
+    }
+
+    private _normalizeStatus(awsStatus: string): string {
+        switch (awsStatus.toUpperCase()) {
             case 'FAILED':
                 return 'Failed';
             case 'SUCCEEDED':
+                return 'Succeeded';
             default:
-                return 'Successful';
+                return 'Running';
+        }
+    }
+
+    private _normalizeReason(awsReason: string): string {
+        switch ((awsReason || '').toUpperCase()) {
+            default:
+                return 'Source changes';
         }
     }
 }

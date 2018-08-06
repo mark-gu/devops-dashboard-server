@@ -1,4 +1,5 @@
-import * as Interfaces from '../../typings/interfaces';
+import _ from 'lodash';
+import * as Model from '../../typings/model';
 import { RequestHelper } from '../utils/HttpHelpers';
 
 const _baseUrl: string = process.env.BAMBOO_URI || '';
@@ -9,28 +10,42 @@ const _headers = {
     'Authorization': _auth
 };
 
-class BambooProvider implements Interfaces.IBuildResultProvider {
-    public getBuildResultAsync(buildId: string): Promise<Interfaces.BuildResult | null> {
-        return RequestHelper.get(`${_apiUrl}/result/${buildId}`, _headers).then((data: any) => {
+class BambooProvider implements Model.IPipelineExecutionInfoProvider, Model.ITestRunInfoProvider {
+    public getPipelineExecutionsAsync(pipelineId: string, top: number = 10): Promise<Model.PipelineExecution[]> {
+        const completedPromise = this._getCompletedAsync(pipelineId, top);
+        const currentPromise = this._getCurrentAsync(pipelineId);
+
+        return Promise.all([completedPromise, currentPromise]).then(values => {
+            const arr1 = values[0] || [];
+            const arr2 = values[1] || [];
+            const merged = arr1.concat(arr2).sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+
+            return merged;
+        });
+    }
+
+    public getPipelineExecutionAsync(pipelineId: string, executionId: string): Promise<Model.PipelineExecution | null> {
+        return RequestHelper.get(`${_apiUrl}/result/${executionId}?expand=changes`, _headers).then((data: any) => {
             if (!data) {
                 return null;
             }
 
-            const build = data.result;
-            const result: Interfaces.BuildResult = {
-                projectId: data.planKey,
-                buildId: build.buildResultKey,
-                buildNumber: parseInt(build.buildNumber),
-                status: build.buildState.replace('Unknown', 'Building'),
-                reason: this._sanitizeBuildReason(build.buildReason),
-                timeStarted: build.buildRelativeTime,
-                duration: build.buildDurationDescription,
-                uri: `${_baseUrl}/browse/${build.buildResultKey}`
+            const item = data.result;
+            const result: Model.PipelineExecution = {
+                pipelineId: pipelineId,
+                id: item.buildResultKey,
+                sequenceNumber: parseInt(item.buildNumber),
+                status: this._normalizeStatus(item.buildState),
+                reason: this._normalizeReason(item.buildReason),
+                changes: this._getCodeChanges(item.changes),
+                timeStarted: item.buildStartedTime,
+                duration: parseInt(item.buildDuration),
+                uri: `${_baseUrl}/browse/${item.buildResultKey}`
             };
 
-            if (build.progress) {
+            if (item.progress) {
                 result.progress = {
-                    prettyStartedTime: build.progress.prettyStartedTime
+                    prettyStartedTime: item.progress.prettyStartedTime
                 };
             }
 
@@ -38,34 +53,73 @@ class BambooProvider implements Interfaces.IBuildResultProvider {
         });
     }
 
-    public getBuildResultsAsync(projectId: string, top: number = 10): Promise<Interfaces.BuildResult[]> {
-        const completedBuildsPromise = this._getCompletedBuildResultsAsync(projectId, top);
-        const currentBuildsPromise = this._getCurrentBuildsAsync(projectId);
+    public getTestRunAsync(pipelineId: string, executionId: string, testRunId: string): Promise<Model.TestRun | null> {
+        return RequestHelper.get(`${_apiUrl}/result/${testRunId}?expand=artifacts`, _headers).then((data: any) => {
+            if (!data) {
+                return null;
+            }
 
-        return Promise.all([completedBuildsPromise, currentBuildsPromise]).then(values => {
-            const arr1 = values[0] || [];
-            const arr2 = values[1] || [];
-            const merged = arr1.concat(arr2).sort((a, b) => b.buildNumber - a.buildNumber);
+            const result = null;
 
-            return merged;
+            // const testRun = data.result
+            // const testRunResult = testRun.testResults ? testRun.testResults.$ : {};
+
+            // const result: Model.TestResult = {
+            //     pipelineId: data.planKey,
+            //     executionId: build.buildResultKey,
+            //     buildNumber: parseInt(build.buildNumber),
+            //     status: this._normalizeBuildStatus(testRun.buildState),
+            //     reason: this._normalizeBuildReason(testRun.buildReason),
+            //     timeStarted: build.buildStartedTime,
+            //     duration: parseInt(build.buildDuration),
+            //     uri: `${_baseUrl}/browse/${build.buildResultKey}`,
+            //     artifacts: _.map((testRun.artifacts ? testRun.artifacts.artifact : null) || [], i => {
+            //         return {
+            //             name: i.name,
+            //             uri: i.link.$.href
+            //         };
+            //     })
+            // };
+
+            // const coverageArtifact = _.find(result.artifacts, i => i.name.toUpperCase().indexOf('COVERAGE') >= 0);
+            // if (coverageArtifact) {
+            //     // request.get(coverageReportUri, {
+            //     //   'Content-Type': 'text/html',
+            //     //   'Authorization': _auth
+            //     // }, $ => {
+            //     //   let text = $('.pc_cov').text();
+            //     //   if (text && text.length) {
+            //     //     let match = text.match(/([0-9]+)%/);
+            //     //     result.testRunResult.coverage = {
+            //     //       percentage: parseFloat(match[1]),
+            //     //       reportUri: coverageReportUri
+            //     //     };
+            //     //   }
+
+            //     //   respond.json(res, result);
+            //     // });
+            // }
+
+            return result;
         });
     }
 
-    private _getCompletedBuildResultsAsync(projectId: string, top: number): Promise<Interfaces.BuildResult[]> {
-        return RequestHelper.get(`${_apiUrl}/result/${projectId}?max-results=${top}`, _headers).then((data: any) => {
-            let result: Interfaces.BuildResult[] = [];
+    private _getCompletedAsync(pipelineId: string, top: number): Promise<Model.PipelineExecution[]> {
+        return RequestHelper.get(`${_apiUrl}/result/${pipelineId}?max-results=${top}`, _headers).then((data: any) => {
+            let result: Model.PipelineExecution[] = [];
 
             if (data) {
-                data.results.results.result.forEach((build: any) => {
+                data.results.results.result.forEach((item: any) => {
                     result.push({
-                        projectId: projectId,
-                        buildId: build.buildResultKey,
-                        buildNumber: parseInt(build.buildNumber),
-                        status: build.buildState,
-                        uri: `${_baseUrl}/browse/${build.buildResultKey}`,
+                        pipelineId: pipelineId,
+                        id: item.buildResultKey,
+                        sequenceNumber: parseInt(item.buildNumber),
+                        status: this._normalizeStatus(item.buildState),
+                        uri: `${_baseUrl}/browse/${item.buildResultKey}`,
                         reason: '',
+                        changes: [],
                         timeStarted: '',
-                        duration: ''
+                        duration: NaN
                     });
                 });
             }
@@ -74,24 +128,25 @@ class BambooProvider implements Interfaces.IBuildResultProvider {
         })
     }
 
-    private _getCurrentBuildsAsync(projectId: string): Promise<Interfaces.BuildResult[]> {
+    private _getCurrentAsync(pipelineId: string): Promise<Model.PipelineExecution[]> {
         return RequestHelper.get(`${_baseUrl}/build/admin/ajax/getDashboardSummary.action`, _headers).then((data: any) => {
-            let result: Interfaces.BuildResult[] = [];
+            let result: Model.PipelineExecution[] = [];
 
             if (data) {
-                data.builds.forEach((build: any) => {
-                    if (projectId === build.planKey) {
+                data.builds.forEach((item: any) => {
+                    if (pipelineId === item.planKey) {
                         result.push({
-                            projectId: build.planKey,
-                            buildId: build.planResultKey,
-                            buildNumber: parseInt(build.buildNumber),
-                            status: 'Building',
-                            reason: this._sanitizeBuildReason(build.triggerReason),
+                            pipelineId: item.planKey,
+                            id: item.planResultKey,
+                            sequenceNumber: parseInt(item.buildNumber),
+                            status: this._normalizeStatus(item.status),
+                            reason: this._normalizeReason(item.triggerReason),
+                            changes: [],
                             timeStarted: '',
-                            duration: build.messageText,
-                            uri: `${_baseUrl}/browse/${build.buildResultKey}`,
+                            duration: NaN,
+                            uri: `${_baseUrl}/browse/${item.buildResultKey}`,
                             progress: {
-                                prettyStartedTime: build.messageText
+                                prettyStartedTime: item.messageText
                             }
                         });
                     }
@@ -102,8 +157,42 @@ class BambooProvider implements Interfaces.IBuildResultProvider {
         })
     }
 
-    private _sanitizeBuildReason(reason: string): string {
-        return reason.replace(/<a .+>(.+)<\/a>/, '$1').replace(/&lt;.+&gt;/, '').trim();
+    private _normalizeStatus(bambooStatus: string): string {
+        switch ((bambooStatus || '').toUpperCase()) {
+            case 'FAILED':
+                return 'Failed';
+            case 'SUCCESSFUL':
+                return 'Succeeded';
+            default:
+                return 'Running';
+        }
+    }
+
+    private _normalizeReason(bambooReason: string): string {
+        return bambooReason.replace(/<a .+>(.+)<\/a>/, '$1').replace(/&lt;.+&gt;/, '').replace(/<.+@.+>/, '').trim();
+    }
+
+    private _getCodeChanges(bambooCodeChanges: any): Model.CodeChange[] {
+        const result: Model.CodeChange[] = [];
+
+        const length = parseInt(bambooCodeChanges.$.size);
+        if (length === 1) {
+            const i = bambooCodeChanges.change.$;
+            result.push({
+                id: i.changesetId,
+                author: i.fullName || this._normalizeReason(i.author) || ''
+            });
+        }
+        else if (length > 1) {
+            _.each(bambooCodeChanges.changes || [], i => {
+                result.push({
+                    id: i.changesetId,
+                    author: i.fullName || this._normalizeReason(i.author)
+                });
+            });
+        }
+
+        return result;
     }
 }
 
