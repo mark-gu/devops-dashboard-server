@@ -63,7 +63,7 @@ class BambooProvider implements Model.IPipelineExecutionInfoProvider {
 
             const testRun = data.result
             const testRunResult = testRun.testResults ? testRun.testResults.$ : {};
-            const testArtifacts = _.isArray(testRun.artifacts.artifact) ? testRun.artifacts.artifact : [testRun.artifacts.artifact];
+            const testArtifacts = testRun.artifacts ? (_.isArray(testRun.artifacts.artifact) ? testRun.artifacts.artifact : [testRun.artifacts.artifact]) : [];
 
             const result: Model.PipelineTestRun = {
                 pipelineId: pipelineId,
