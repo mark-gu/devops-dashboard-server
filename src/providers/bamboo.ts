@@ -53,7 +53,7 @@ class BambooProvider implements Model.IPipelineExecutionInfoProvider {
         });
     }
 
-    public getPipelineTestExecutionAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestExecution | null> {
+    public getPipelineTestRunAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestRun | null> {
         const testRunId = executionId.replace(pipelineId, `${pipelineId}-${testStepId}`);
 
         return RequestHelper.get(`${_apiUrl}/result/${testRunId}?expand=artifacts`, _headers).then((data: any) => {
@@ -63,8 +63,9 @@ class BambooProvider implements Model.IPipelineExecutionInfoProvider {
 
             const testRun = data.result
             const testRunResult = testRun.testResults ? testRun.testResults.$ : {};
+            const testArtifacts = _.isArray(testRun.artifacts.artifact) ? testRun.artifacts.artifact : [testRun.artifacts.artifact];
 
-            const result: Model.PipelineTestExecution = {
+            const result: Model.PipelineTestRun = {
                 pipelineId: pipelineId,
                 pipelineExecutionId: executionId,
                 testStepId: testStepId,
@@ -80,7 +81,7 @@ class BambooProvider implements Model.IPipelineExecutionInfoProvider {
                 duration: parseInt(testRun.buildDuration),
                 timeStarted: testRun.buildStartedTime,
                 uri: `${_baseUrl}/browse/${testRun.buildResultKey}`,
-                artifacts: _.map((testRun.artifacts ? testRun.artifacts.artifact : null) || [], i => {
+                artifacts: _.map(testArtifacts, i => {
                     return {
                         name: i.name,
                         uri: i.link.$.href

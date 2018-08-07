@@ -61,9 +61,9 @@ export class RequestHelper {
 
 export class ResponseHelper {
     public static json(response: any, data: any): void {
-        response.setHeader('Content-Type', 'application/json');
-        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         response.setHeader('Access-Control-Allow-Origin', '*');
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader('Content-Type', 'application/json');
         response.send(data || {});
     }
 }

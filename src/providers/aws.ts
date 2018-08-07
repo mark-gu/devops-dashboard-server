@@ -37,7 +37,7 @@ class AwsProvider implements Model.IPipelineExecutionInfoProvider {
         });
     }
 
-    public getPipelineTestExecutionAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestExecution | null> {
+    public getPipelineTestRunAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestRun | null> {
         return Promise.resolve(null);
     }
 

@@ -39,6 +39,7 @@ app.use(function(err, req, res, next) {
     result.stack = err.stack;
   }
 
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
   res.status(result.status);
   res.send(result);
