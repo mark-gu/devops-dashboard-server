@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/mark-gu/devops-dashboard-server#readme",
   "dependencies": {
+    "@types/cheerio": "^0.22.8",
     "aws-sdk": "^2.285.1",
     "cheerio": "^1.0.0-rc.2",
     "cookie-parser": "~1.4.3",

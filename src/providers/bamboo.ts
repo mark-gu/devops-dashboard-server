@@ -10,7 +10,7 @@ const _headers = {
     'Authorization': _auth
 };
 
-class BambooProvider implements Model.IPipelineExecutionInfoProvider, Model.ITestRunInfoProvider {
+class BambooProvider implements Model.IPipelineExecutionInfoProvider {
     public getPipelineExecutionsAsync(pipelineId: string, top: number = 10): Promise<Model.PipelineExecution[]> {
         const completedPromise = this._getCompletedAsync(pipelineId, top);
         const currentPromise = this._getCurrentAsync(pipelineId);
@@ -53,54 +53,62 @@ class BambooProvider implements Model.IPipelineExecutionInfoProvider, Model.ITes
         });
     }
 
-    public getTestRunAsync(pipelineId: string, executionId: string, testRunId: string): Promise<Model.TestRun | null> {
+    public getPipelineTestExecutionAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestExecution | null> {
+        const testRunId = executionId.replace(pipelineId, `${pipelineId}-${testStepId}`);
+
         return RequestHelper.get(`${_apiUrl}/result/${testRunId}?expand=artifacts`, _headers).then((data: any) => {
             if (!data) {
-                return null;
+                return Promise.resolve(null);
             }
 
-            const result = null;
+            const testRun = data.result
+            const testRunResult = testRun.testResults ? testRun.testResults.$ : {};
 
-            // const testRun = data.result
-            // const testRunResult = testRun.testResults ? testRun.testResults.$ : {};
+            const result: Model.PipelineTestExecution = {
+                pipelineId: pipelineId,
+                pipelineExecutionId: executionId,
+                testStepId: testStepId,
+                id: testRun.buildResultKey,
+                status: this._normalizeStatus(testRun.buildState),
+                counters: {
+                    all: parseInt(testRunResult.all),
+                    succeeded: parseInt(testRunResult.successful),
+                    failed: parseInt(testRunResult.failed),
+                    skipped: parseInt(testRunResult.skipped),
+                    quarantined: parseInt(testRunResult.quarantined)
+                },
+                duration: parseInt(testRun.buildDuration),
+                timeStarted: testRun.buildStartedTime,
+                uri: `${_baseUrl}/browse/${testRun.buildResultKey}`,
+                artifacts: _.map((testRun.artifacts ? testRun.artifacts.artifact : null) || [], i => {
+                    return {
+                        name: i.name,
+                        uri: i.link.$.href
+                    };
+                })
+            };
 
-            // const result: Model.TestResult = {
-            //     pipelineId: data.planKey,
-            //     executionId: build.buildResultKey,
-            //     buildNumber: parseInt(build.buildNumber),
-            //     status: this._normalizeBuildStatus(testRun.buildState),
-            //     reason: this._normalizeBuildReason(testRun.buildReason),
-            //     timeStarted: build.buildStartedTime,
-            //     duration: parseInt(build.buildDuration),
-            //     uri: `${_baseUrl}/browse/${build.buildResultKey}`,
-            //     artifacts: _.map((testRun.artifacts ? testRun.artifacts.artifact : null) || [], i => {
-            //         return {
-            //             name: i.name,
-            //             uri: i.link.$.href
-            //         };
-            //     })
-            // };
+            const coverageArtifact = _.find(result.artifacts, i => i.name.toUpperCase().indexOf('COVERAGE') >= 0);
+            if (coverageArtifact && coverageArtifact.uri) {
+                return RequestHelper.get(coverageArtifact.uri, {
+                    'Content-Type': 'text/html',
+                    'Authorization': _auth
+                }).then(($: any) => {
+                    let text = $('.pc_cov').text();
+                    if (text && text.length) {
+                        let match = text.match(/([0-9]+)%/);
 
-            // const coverageArtifact = _.find(result.artifacts, i => i.name.toUpperCase().indexOf('COVERAGE') >= 0);
-            // if (coverageArtifact) {
-            //     // request.get(coverageReportUri, {
-            //     //   'Content-Type': 'text/html',
-            //     //   'Authorization': _auth
-            //     // }, $ => {
-            //     //   let text = $('.pc_cov').text();
-            //     //   if (text && text.length) {
-            //     //     let match = text.match(/([0-9]+)%/);
-            //     //     result.testRunResult.coverage = {
-            //     //       percentage: parseFloat(match[1]),
-            //     //       reportUri: coverageReportUri
-            //     //     };
-            //     //   }
+                        result.coverage = {
+                            percentage: parseFloat(match[1]),
+                            reportUri: coverageArtifact.uri
+                        };
+                    }
 
-            //     //   respond.json(res, result);
-            //     // });
-            // }
+                    return result;
+                });
+            }
 
-            return result;
+            return Promise.resolve(result);
         });
     }
 

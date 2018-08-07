@@ -1,5 +1,6 @@
 import * as request from 'request-promise-native';
-import { parseString } from "xml2js";
+import * as cheerio from 'cheerio';
+import { parseString } from 'xml2js';
 import { LogHelper, LogLevel } from "./LogHelper";
 
 export class RequestHelper {
@@ -50,7 +51,7 @@ export class RequestHelper {
     }
 
     private static _parseHtml(content: string): any {
-        throw new Error('Not Implemented');
+        return cheerio.load(content);
     }
 
     private static _parseJson(content: string): any {

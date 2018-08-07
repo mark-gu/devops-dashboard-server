@@ -37,6 +37,10 @@ class AwsProvider implements Model.IPipelineExecutionInfoProvider {
         });
     }
 
+    public getPipelineTestExecutionAsync(pipelineId: string, executionId: string, testStepId: string): Promise<Model.PipelineTestExecution | null> {
+        return Promise.resolve(null);
+    }
+
     private _toBuildResult(pipelineId: string, item: AWS.CodePipeline.PipelineExecutionSummary): Model.PipelineExecution {
         const startMoment = moment(item.startTime || '');
         const endMoment = moment(item.lastUpdateTime || '');
@@ -73,7 +77,7 @@ class AwsProvider implements Model.IPipelineExecutionInfoProvider {
     private _normalizeReason(awsReason: string): string {
         switch ((awsReason || '').toUpperCase()) {
             default:
-                return 'Source changes';
+                return 'Code has changed';
         }
     }
 }

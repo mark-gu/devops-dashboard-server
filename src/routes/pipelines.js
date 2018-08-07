@@ -32,15 +32,15 @@ router.get('/:providerName/:pipelineId/executions/:executionId', (req, res, next
     }
 });
 
-router.get('/:providerName/:pipelineId/executions/:executionId/test-runs/:testRunId', (req, res, next) => {
+router.get('/:providerName/:pipelineId/executions/:executionId/test-steps/:testStepId/', (req, res, next) => {
     try {
         const providerName = req.params.providerName;
         const pipelineId = req.params.pipelineId;
         const executionId = req.params.executionId;
-        const testRunId = req.params.testRunId;
+        const testStepId = req.params.testStepId;
 
         const providerModule = require(`../providers/${providerName}`);
-        new providerModule().getTestRunAsync(pipelineId, executionId).then(result => {
+        new providerModule().getPipelineTestExecutionAsync(pipelineId, executionId, testStepId).then(result => {
             responseHelper.json(res, result);
         });
     } catch (e) {
