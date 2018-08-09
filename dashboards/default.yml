@@ -1,0 +1,23 @@
+title: DevOps Dashboard
+description: The DevOps Dashboard for the DevOps Dashboard
+columnConfigs:
+  - title: Client (Angular)
+    widgetConfigs:
+    - title: 'Branch: master'
+      type: pipeline
+      provider: aws
+      pipelineId: DevOps-Dashboard-Client_Master-Pipeline
+    - title: 'Branch: release'
+      type: pipeline
+      provider: aws
+      pipelineId: DevOps-Dashboard-Client_Release-Pipeline
+  - title: Server (Node.js)
+    widgetConfigs:
+    - title: 'Branch: master'
+      type: pipeline
+      provider: aws
+      pipelineId: DevOps-Dashboard-Client_Master-Pipeline
+    - title: 'Branch: release'
+      type: pipeline
+      provider: aws
+      pipelineId: DevOps-Dashboard-Client_Release-Pipeline
