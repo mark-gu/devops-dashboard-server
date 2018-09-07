@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import moment from 'moment';
 import * as AWS from 'aws-sdk';
-import * as Model from '../../typings/model';
+import * as Model from '../model';
 
 const _region = process.env.AWS_REGION || 'ap-southeast-2';
 

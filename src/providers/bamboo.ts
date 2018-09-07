@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import * as Model from '../../typings/model';
+import * as Model from '../model';
 import { RequestHelper } from '../utils/HttpHelpers';
 
 const _baseUrl: string = process.env.BAMBOO_URI || '';

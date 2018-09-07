@@ -60,7 +60,6 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "typings"
+    "node_modules"
   ]
 }

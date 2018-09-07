@@ -1,0 +1,7 @@
+**/.*
+Dockerfile
+process.dev.yml
+
+.vscode
+node_modules
+scripts

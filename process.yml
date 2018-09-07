@@ -1,7 +1,6 @@
 apps:
 - name: "server"
   script: "./bin/www"
-  watch: true
   env:
-    BAMBOO_URI: ""
-    BAMBOO_AUTH_TOKEN: ""
+    BAMBOO_URI: ${BAMBOO_URI}
+    BAMBOO_AUTH_TOKEN: ${BAMBOO_AUTH_TOKEN}
