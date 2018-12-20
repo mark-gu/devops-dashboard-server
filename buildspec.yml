@@ -15,15 +15,15 @@ phases:
       # - command
   pre_build:
     commands:
-      - $(aws ecr get-login --no-include-email --region $(AWS_REGION))
+      - $(aws ecr get-login --no-include-email --region ap-southeast-2)
   build:
     commands:
       - docker build -t devops-dashboard-server .
-      - docker tag devops-dashboard-server:latest 527476858660.dkr.ecr.$(AWS_REGION).amazonaws.com/devops-dashboard-server:latest
+      - docker tag devops-dashboard-server:latest 527476858660.dkr.ecr.ap-southeast-2.amazonaws.com/devops-dashboard-server:latest
       # - command
   post_build:
     commands:
-      - docker push 527476858660.dkr.ecr.$(AWS_REGION).amazonaws.com/devops-dashboard-server:latest
+      - docker push 527476858660.dkr.ecr.ap-southeast-2.amazonaws.com/devops-dashboard-server:latest
 #artifacts:
   #files:
     # - location
