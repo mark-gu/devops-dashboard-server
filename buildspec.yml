@@ -1,0 +1,36 @@
+version: 0.2
+
+#env:
+  #variables:
+     # key: "value"
+     # key: "value"
+  #parameter-store:
+     # key: "value"
+     # key: "value"
+
+phases:
+  #install:
+    #commands:
+      # - command
+      # - command
+  pre_build:
+    commands:
+      - $(aws ecr get-login --no-include-email --region $(AWS_REGION))
+  build:
+    commands:
+      - docker build -t devops-dashboard-server .
+      - docker tag devops-dashboard-server:latest 527476858660.dkr.ecr.$(AWS_REGION).amazonaws.com/devops-dashboard-server:latest
+      # - command
+  post_build:
+    commands:
+      - docker push 527476858660.dkr.ecr.$(AWS_REGION).amazonaws.com/devops-dashboard-server:latest
+#artifacts:
+  #files:
+    # - location
+    # - location
+  #name: $(date +%Y-%m-%d)
+  #discard-paths: yes
+  #base-directory: location
+#cache:
+  #paths:
+    # - paths
